@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <title>塔防小游戏</title>
+		<style>
+            body{
+                overflow: hidden;
+            }
+			#map{
+				background: yellow;
+				margin: 20px auto;
+				overflow: hidden;
+			}
+			#map div{
+				width: 50px;
+				height: 50px;
+				background: #000;
+				float: left;
+				font-size: 20px;
+				text-align: center;
+				line-height: 50px;
+				color: #fff;
+			}
+			#map .begin{
+				background: yellow;
+				color: #000;
+			}
+			#map .end{
+				background: blue;
+			}
+			#map .road{
+				background: #fff;
+				color: black;
+			}
+			#map .gw{
+				background: url(gw1.jpg) no-repeat;
+				position: absolute;
+			}
+			#map .hover{
+				background: red;
+			}
+			#map .bullet{
+				width: 20px;
+				height: 20px;
+				background: green;
+				position: absolute;
+				left: 50px;
+				top: 50px;
+				border-radius: 50%;
+			}
+		</style>
+        <script src="jquery-1.11.1.js"></script>
+        <script src="jquery.cookie.js"></script>
+        <script>
+        $(function(){
+        	var $map=$('#map');
+        	var $Btn=$('input[type=button]');
+        	var $span=$('span');
+        	var $Select=$('select');
+        	var Game={
+        		speed:0,
+        		gwNum:1,
+        		mapArr:[        		//地图布局
+        			1,1,1,3,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+        			1,1,1,2,1,1,1,1,1,1,1,1,2,2,2,1,1,1,1,1,
+        			1,1,1,2,2,2,2,2,2,2,1,1,2,1,2,1,1,1,1,1,
+        			1,1,1,1,1,1,1,1,1,2,1,1,2,1,2,1,1,1,1,1,
+        			1,1,1,1,1,1,1,1,1,2,1,1,2,1,2,1,1,1,1,1,
+        			1,1,1,1,1,1,1,1,1,2,2,2,2,1,2,2,2,1,1,1,
+        			1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,2,1,1,1,
+        			1,1,1,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1,1,1,
+        			1,1,1,2,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+        			1,1,1,4,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
+        		],
+        		runArr:[
+        			0,0,0,'01B',0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+        			0,0,0,0,0,0,0,0,0,0,0,0,'06R',0,'07B',0,0,0,0,0,
+        			0,0,0,'02R',0,0,0,0,0,'03B',0,0,0,0,0,0,0,0,0,0,
+        			0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+        			0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+        			0,0,0,0,0,0,0,0,0,'04R',0,0,'05T',0,'08R',0,'09B',0,0,0,
+        			0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+        			0,0,0,'11B',0,0,0,0,0,0,0,0,0,0,0,0,'10L',0,0,0,
+        			0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+        			0,0,0,'12B',0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+        		],
+        		rowWidth:50,    		//每个方格的宽度
+        		clumNum:20,				//每一行的方格数量
+        		bulletPower:10,          //子弹的攻击力
+        		bulletArea:150,          //子弹的攻击范围
+        		bulletSpeed:10,          //子弹的攻击速度
+        		ptCost:50,				//炮塔价格
+        		gwXL:100,				//怪物的血量
+        		gwCost:10,				//怪物的价值
+        		select:function(){		//通过cookie来给下拉框赋值
+        			var lev=$.cookie('lev');
+                    var money=$.cookie('money');
+        			var $op1=$('select').eq(0).find('option');
+                    if(lev){
+                        $op1.eq(lev).siblings().attr('selected',false);
+                        $op1.eq(lev).attr('selected',true);
+                    }else{
+                        $op1.eq(0).attr('selected','selected');
+                    }
+                    if(money){
+                        $span.html(-(-200-money)+'￥');
+                    }else{
+                        $span.html('200￥');
+                    }
+        		},
+        		beginFn:function(){
+        			this.startFn();
+        		},
+        		startFn:function(){		//初始化函数
+        			this.createGW();
+        		},
+        		createMap:function(){   //创建地图
+        			$map.css('width',this.rowWidth*this.clumNum);
+        			$.each(this.mapArr,function(i){
+        				$div=$('<div>');
+        				$div.attr('index',this);
+        				if(this==3){
+        					$div.addClass('begin');
+        					$div.html('开始');
+        				}else if(this==2){
+        					$div.addClass('road');
+        				}else if(this==4){
+        					$div.addClass('end');
+        					$div.html('结束');
+        				}
+        				$map.append($div);
+        			})
+        		},
+        		createGW:function(){	//创建怪物
+        			var _this=this;
+        			var num=0;
+        			var timer=setInterval(function(){
+	        			var $gw=$('<div>');
+	        			var $bDiv=$map.find('.begin');
+	        			$gw.css({'left':$bDiv.position().left,'top':$bDiv.position().top});
+	        			$gw.attr('xl',Game.gwXL);
+	        			$gw.addClass('gw');
+	        			$map.append($gw);
+    					_this.runGW(num);
+        				if(num==_this.gwNum-1){
+        					clearInterval(timer);
+        				}
+        				num++;
+        			},3*(500-this.speed*50))
+        		},
+        		runGW:function(a){		//怪物运动
+        			var $gw=$map.find('.gw');
+        			var $aRoad=$map.find('.road');
+        			var $aDiv=$map.find('div');
+        			var _this=this;
+        			var arr=[];
+        			var arrSeat=[];
+    				var attr='';
+    				var iNow=0;
+    				var n=parseInt(this.speed);
+        			$.each(this.runArr,function(i,val){
+        				if(typeof val=='string'){
+        					if(val.substring(0,2)!=0){
+        						arr.push(val+'.'+i);
+	        				}
+        				}
+        			}) 
+        			arr.sort();
+        			$.each(arr,function(i,val){
+        				arrSeat.push(val.split('.')[1]);
+        			})
+        			var timer= setInterval(function(){
+        				var t=$gw.eq(a).offset().top;
+        				var l=$gw.eq(a).offset().left;
+        				var gT=$aDiv.eq(arrSeat[iNow]).offset().top;
+        				var gL=$aDiv.eq(arrSeat[iNow]).offset().left;
+        				if(Math.abs(t-gT)<Math.abs(n)&&Math.abs(l-gL)<Math.abs(n)){
+        					var str=_this.runArr[arrSeat[iNow]].substring(2,3);
+        					if(str=='B'){
+        						attr='top';
+        						n=Math.abs(n);
+        					}else if(str=='L'){
+        						attr='left';
+        						n=-Math.abs(n);
+        					}else if(str=='R'){
+        						attr='left';
+        						n=Math.abs(n);
+        					}else if(str=='T'){
+        						attr='top';
+        						n=-Math.abs(n);
+        					}
+        					iNow++;
+        				}
+        				if(iNow>(arrSeat.length-1)){  
+        					clearInterval(timer);
+        					alert('游戏失败');
+        					window.location.reload(); 
+        				}
+        				$gw.eq(a).css(attr,$gw.eq(a).offset()[attr]+n);
+        			},60)	
+        		},
+        		getDis:function($obj1,$obj2){
+        			var a=$obj1.offset().left-$obj2.offset().left;
+        			var b=$obj1.offset().top-$obj2.offset().top;
+        			return Math.sqrt(a*a+b*b);
+        		},
+        		ptSeat:function(){     //炮台位置设置
+        			var $pt=$map.find('div').not('.road').not('.end').not('.begin');
+        			$pt.hover(function(){
+        				$(this).addClass('hover');
+        			},function(){
+        				$(this).removeClass('hover');
+        			})
+        			$pt.click(function(){
+        				if(parseInt($span.html())>=50){
+	        				if(!$(this).attr('pt')){
+								$(this).css('background','url(pt1.jpg)');
+	        					$(this).attr('pt',true);
+				        		Game.createBullet($(this));
+				        		$span.html(parseInt($span.html())-Game.ptCost+'￥');
+	        				}	
+        				}
+        			})
+        		},
+        		createBullet:function(obj){  //创建子弹
+        			var $pt=$map.find('div[pt=true]');
+        			var timer=setInterval(function(){
+        				Game.shoot();
+        				if(obj.attr('btn')=='true'){
+	        				var $bul=$('<div class="bullet"></div>');
+		        			$bul.css({'left':obj.offset().left+obj.width()/2-10,'top':obj.offset().top+obj.height()/2-10});
+		        			$map.append($bul);
+		        			var target=$map.find('div').eq(obj.attr('target'));
+							Game.bulletRun(target,$bul);	
+        				}
+        			},500)
+        		},
+        		bulletRun:function(target,b){		//子弹发射
+        			var _this=this;
+        			var tL=target.offset().left+target.width()/2;
+        			var tT=target.offset().top+target.height()/2;
+        			var l=b.offset().left;
+        			var t=b.offset().top;
+    				var s= _this.getDis(b,target);
+    				var xS=(tL-l)/s*_this.bulletSpeed;
+    				var yS=(tT-t)/s*_this.bulletSpeed;
+        			var timer=setInterval(function(){
+        				b.css({'left':b.offset().left+xS,'top':b.offset().top+yS});
+        				if(Math.round(Math.abs(b.offset().left-tL))<Math.abs(xS)&&Math.round(Math.abs(b.offset().top-tT))<Math.abs(yS)){
+    						clearInterval(timer);
+    						b.remove();
+    						target.attr('xl',target.attr('xl')-10);
+    						if(target.attr('xl')<=0){
+    							if(target.css('display')!='none'){
+    								target.css('display','none');
+    								$span.html(parseInt($span.html())+Game.gwCost+'￥');
+    								var $gw=$map.find('.gw:last');
+    								if($gw.css('display')=='none'){
+    									alert('恭喜,进入下一等级');
+    									$.cookie("lev", $Select.eq(0).val());
+                                        $.cookie("money",parseInt($span.html()));
+    									window.location.reload();
+    								}
+    							}
+    							
+    						}
+        				}
+        			},60)
+        		},
+        		shoot:function(){			//对敌人进入攻击范围内进行监听；
+        			var $gw=$map.find('.gw');
+        			var $pt=$map.find('div[pt=true]');
+        			var _this=this;
+        			$pt.each(function(i,aEle){
+        				var arr=[];
+        				$gw.each(function(j,bEle){
+	        				var dis=Game.getDis($(aEle),$(bEle));
+	        				if(dis<_this.bulletArea){
+	        					arr.push($(bEle).index());
+	        				}
+        				})
+        				if(arr.length>0){
+        					$(aEle).attr('btn',true);
+        				}else{
+        					$(aEle).attr('btn',false);
+        				}
+        				$(aEle).attr('target',arr[0])	
+        			})
+        		},
+        	};	
+			Game.createMap();
+			Game.ptSeat();
+			Game.select();
+        	$Btn.click(function(){
+        		this.disabled=true;
+        		Game.speed=$Select.eq(0).val();
+        		Game.gwNum=$Select.eq(1).val();
+        		Game.beginFn();
+        	});
+        })
+        </script>
+    </head>
+    <body>
+    	<input type="button" value="开始">
+    	<span>200￥</span>
+    	<label>
+    		请选择游戏难度：
+    		<select>
+    			<option value="1">1</option>
+    			<option value="2">2</option>
+    			<option value="3">3</option>
+    			<option value="4">4</option>
+    			<option value="5">5</option>
+    			<option value="6">6</option>
+    			<option value="7">7</option>
+    			<option value="8">8</option>
+    			<option value="9">9</option>
+    			<option value="10">10</option>
+    		</select>
+    	</label>
+    	<label>
+    		请选择怪物数量：
+    		<select>
+    			<option value="8">8</option>
+    			<option value="9">9</option>
+    			<option value="10">10</option>
+    			<option value="11">11</option>
+    			<option value="12">12</option>
+    			<option value="13">13</option>
+    			<option value="14">14</option>
+    			<option value="15">15</option>
+    			<option value="18">18</option>
+    			<option value="20">20</option>
+    		</select>
+    	</label>
+    	<div id="map"></div>
+    </body>
+</html>
